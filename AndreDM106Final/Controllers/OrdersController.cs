@@ -198,7 +198,7 @@ namespace AndreDM106Final.Controllers
             decimal pesototal = 0, alturaTotal = 0, largura = 0, comprimento = 0, diametro = 0, precoTotal = 0, valorFrete = 0;
             String CEPDestino, prazoEntrega;
             cResultado resultado;
-            Order order = db.Orders.Where(p => p.Id == idPedido).FirstOrDefault(); 
+            Order order = db.Orders.Where(p => p.Id == idPedido).FirstOrDefault();
 
             if (order == null)
                 return Ok("O pedido não existe. Favor fornecer um ID válido.");
@@ -215,12 +215,12 @@ namespace AndreDM106Final.Controllers
                 CRMRestClient crmClient = new CRMRestClient();
                 try
                 {
-                    Customer customer = crmClient.GetCustomerByEmail("inatel_mobile@inatel.br");
+                    Customer customer = crmClient.GetCustomerByEmail(User.Identity.Name);
                     CEPDestino = customer.zip;
                 }
                 catch
                 {
-                    return Ok("Não foi possivel acessar o serviço de CRM.");
+                    return Ok("Não foi possivel acessar o serviço de CRM. Talvez o email do usuário atual não esteja cadastrado em siecolacrm.");
                 }
 
                 for (int cont = 0; cont < order.OrderItems.Count; cont++)
@@ -250,24 +250,32 @@ namespace AndreDM106Final.Controllers
 
                 }
 
+                if (resultado.Servicos[0].Erro.Equals("0"))
+                {
+                    NumberFormatInfo nfi = new CultureInfo("pt-BR", false).NumberFormat;
+                    //valorFrete = decimal.Parse(resultado.Servicos.Single().Valor, nfi);
+                    valorFrete = decimal.Parse(resultado.Servicos[0].Valor, nfi);
 
-                NumberFormatInfo nfi = new CultureInfo("pt-BR", false).NumberFormat;
-                valorFrete = decimal.Parse(resultado.Servicos.Single().Valor, nfi);
+                    int prazo = int.Parse(resultado.Servicos.Single().PrazoEntrega);
 
-                int prazo = int.Parse(resultado.Servicos.Single().PrazoEntrega);
+                    DateTime atual = DateTime.Now;
 
-                DateTime atual = DateTime.Now;
+                    atual = atual.AddDays(prazo);
 
-                atual = atual.AddDays(prazo);
+                    order.pesoPedido = pesototal;
+                    order.precoFrete = valorFrete;
+                    order.precoPedido = precoTotal;
+                    order.dataEntrega = atual;
 
-                order.pesoPedido = pesototal;
-                order.precoFrete = valorFrete;
-                order.precoPedido = precoTotal;
-                order.dataEntrega = atual;
+                    db.SaveChanges();
 
-                db.SaveChanges();
+                    return Ok("Pedido #: " + idPedido + " calculado com Sucesso. ( Frete: R$ " + resultado.Servicos.Single().Valor + " / Prazo: " + resultado.Servicos.Single().PrazoEntrega + " dias )");
+                }
+                else
+                {
+                    return BadRequest("Código do erro: " + resultado.Servicos[0].Erro + "-" + resultado.Servicos[0].MsgErro);
+                }
 
-                return Ok("Pedido #: " + idPedido + " calculado com Sucesso. ( Frete: R$ " + resultado.Servicos.Single().Valor + " / Prazo: " + resultado.Servicos.Single().PrazoEntrega + " dias )");
             }
             else
             {
@@ -289,6 +297,8 @@ namespace AndreDM106Final.Controllers
         {
             return db.Orders.Count(e => e.Id == id) > 0;
         }
+
+
 
 
 

@@ -39,5 +39,6 @@ namespace AndreDM106Final.Models
 
         public System.Data.Entity.DbSet<AndreDM106Final.Models.Order> Orders { get; set; }
 
+        public System.Data.Entity.DbSet<AndreDM106Final.Models.OrderItem> OrderItems { get; set; }
     }
 }
